@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Number Guesser – lmoney.vip</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0e17;
+      color: #fffffe;
+      font-family: 'Nunito', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 20px 40px;
+    }
+
+    .back { align-self: flex-start; color: #a8a8b3; text-decoration: none; font-size: 0.95rem; margin-bottom: 40px; }
+    .back:hover { color: #fffffe; }
+
+    h1 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2.6rem;
+      color: #48dbfb;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #a8a8b3;
+      margin-bottom: 40px;
+      font-size: 1rem;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border: 2px solid #48dbfb;
+      border-radius: 24px;
+      padding: 36px 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+
+    #hint {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      min-height: 56px;
+      margin-bottom: 12px;
+      transition: all 0.3s;
+    }
+
+    #hint.hot   { color: #ff6b6b; }
+    #hint.warm  { color: #feca57; }
+    #hint.cold  { color: #48dbfb; }
+    #hint.win   { color: #1dd1a1; }
+
+    #sub-hint {
+      color: #a8a8b3;
+      font-size: 1rem;
+      min-height: 24px;
+      margin-bottom: 28px;
+    }
+
+    #range-bar {
+      position: relative;
+      height: 10px;
+      background: #2a2a3e;
+      border-radius: 10px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+
+    #range-fill {
+      position: absolute;
+      height: 100%;
+      background: linear-gradient(90deg, #48dbfb, #1dd1a1);
+      border-radius: 10px;
+      transition: width 0.4s, left 0.4s;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="number"] {
+      flex: 1;
+      background: #0f0e17;
+      border: 2px solid #2a2a3e;
+      border-radius: 14px;
+      color: #fffffe;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.5rem;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    input[type="number"]:focus { border-color: #48dbfb; }
+
+    button {
+      background: #48dbfb;
+      color: #0f0e17;
+      border: none;
+      border-radius: 14px;
+      padding: 12px 22px;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+    }
+
+    button:hover { background: #00d2ff; transform: scale(1.04); }
+    button:active { transform: scale(0.97); }
+
+    #guesses-label {
+      margin-top: 20px;
+      color: #a8a8b3;
+      font-size: 0.9rem;
+    }
+
+    #guess-count {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      color: #48dbfb;
+    }
+
+    #history {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 16px;
+      min-height: 32px;
+    }
+
+    .bubble {
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .bubble.high { background: #ff6b6b33; color: #ff6b6b; }
+    .bubble.low  { background: #48dbfb33; color: #48dbfb; }
+
+    #play-again {
+      display: none;
+      margin-top: 20px;
+      background: #1dd1a1;
+      color: #0f0e17;
+    }
+
+    #play-again:hover { background: #00b894; }
+  </style>
+</head>
+<body>
+
+<a class="back" href="index.html">← back</a>
+
+<h1>🔢 Number Guesser</h1>
+<p class="subtitle">I'm thinking of a number between 1 and 100…</p>
+
+<div class="card">
+  <div id="hint">🤔</div>
+  <div id="sub-hint">Make your first guess!</div>
+
+  <div id="range-bar"><div id="range-fill"></div></div>
+
+  <div class="input-row">
+    <input type="number" id="guess-input" min="1" max="100" placeholder="1–100">
+    <button id="guess-btn">Guess!</button>
+  </div>
+
+  <div id="guesses-label">Guesses: <span id="guess-count">0</span></div>
+
+  <div id="history"></div>
+
+  <button id="play-again">Play Again</button>
+</div>
+
+<script>
+  let secret, guessCount, lo, hi, done;
+
+  function newGame() {
+    secret = Math.floor(Math.random() * 100) + 1;
+    guessCount = 0;
+    lo = 1; hi = 100; done = false;
+    document.getElementById('hint').textContent = '🤔';
+    document.getElementById('hint').className = '';
+    document.getElementById('sub-hint').textContent = 'Make your first guess!';
+    document.getElementById('guess-count').textContent = '0';
+    document.getElementById('history').innerHTML = '';
+    document.getElementById('play-again').style.display = 'none';
+    document.getElementById('guess-input').value = '';
+    document.getElementById('guess-input').disabled = false;
+    document.getElementById('guess-btn').disabled = false;
+    updateBar();
+  }
+
+  function updateBar() {
+    const fill = document.getElementById('range-fill');
+    const leftPct  = ((lo - 1) / 100) * 100;
+    const widthPct = ((hi - lo + 1) / 100) * 100;
+    fill.style.left  = leftPct + '%';
+    fill.style.width = widthPct + '%';
+  }
+
+  function guess() {
+    if (done) return;
+    const input = document.getElementById('guess-input');
+    const val = parseInt(input.value, 10);
+    if (!val || val < 1 || val > 100) {
+      document.getElementById('sub-hint').textContent = 'Enter a number between 1 and 100!';
+      return;
+    }
+
+    guessCount++;
+    document.getElementById('guess-count').textContent = guessCount;
+    input.value = '';
+
+    const hintEl = document.getElementById('hint');
+    const subEl  = document.getElementById('sub-hint');
+    const hist   = document.getElementById('history');
+    const diff   = Math.abs(val - secret);
+
+    if (val === secret) {
+      hintEl.textContent = '🎉 Correct!';
+      hintEl.className = 'win';
+      const msgs = ['Wow, nice!', 'You got it!', 'Amazing!', 'Incredible!'];
+      subEl.textContent = `${msgs[Math.floor(Math.random() * msgs.length)]} It took you ${guessCount} guess${guessCount !== 1 ? 'es' : ''}.`;
+      done = true;
+      input.disabled = true;
+      document.getElementById('guess-btn').disabled = true;
+      document.getElementById('play-again').style.display = 'block';
+      return;
+    }
+
+    const bubble = document.createElement('span');
+    bubble.className = 'bubble ' + (val > secret ? 'high' : 'low');
+    bubble.textContent = val + (val > secret ? ' ↑' : ' ↓');
+    hist.prepend(bubble);
+
+    if (val > secret) {
+      hi = Math.min(hi, val - 1);
+      subEl.textContent = 'Go lower!';
+    } else {
+      lo = Math.max(lo, val + 1);
+      subEl.textContent = 'Go higher!';
+    }
+
+    if (diff <= 3) {
+      hintEl.textContent = '🔥 Scorching!';
+      hintEl.className = 'hot';
+    } else if (diff <= 8) {
+      hintEl.textContent = '🌡️ Getting warm…';
+      hintEl.className = 'warm';
+    } else if (diff <= 20) {
+      hintEl.textContent = '🧊 Cool…';
+      hintEl.className = 'cold';
+    } else {
+      hintEl.textContent = '❄️ Freezing!';
+      hintEl.className = 'cold';
+    }
+
+    updateBar();
+    input.focus();
+  }
+
+  document.getElementById('guess-btn').addEventListener('click', guess);
+  document.getElementById('guess-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') guess();
+  });
+  document.getElementById('play-again').addEventListener('click', newGame);
+
+  newGame();
+</script>
+
+</body>
+</html>

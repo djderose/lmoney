@@ -1,7 +1,138 @@
 <!DOCTYPE html>
-<html>
-  <head><title>lmoney.vip</title></head>
-  <body>
-    <h1>Coming soon... 💰</h1>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>lmoney.vip</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0e17;
+      color: #fffffe;
+      font-family: 'Nunito', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    header h1 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 4rem;
+      background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+    }
+
+    header p {
+      font-size: 1.2rem;
+      color: #a8a8b3;
+      margin-top: 10px;
+    }
+
+    .games {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 960px;
+      width: 100%;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border-radius: 20px;
+      padding: 36px 28px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+    }
+
+    .card.red   { border-color: #ff6b6b; }
+    .card.blue  { border-color: #48dbfb; }
+    .card.green  { border-color: #1dd1a1; }
+    .card.yellow { border-color: #feca57; }
+
+    .card .emoji {
+      font-size: 3.5rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .card h2 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.7rem;
+      margin-bottom: 8px;
+    }
+
+    .card.red    h2 { color: #ff6b6b; }
+    .card.blue   h2 { color: #48dbfb; }
+    .card.green  h2 { color: #1dd1a1; }
+    .card.yellow h2 { color: #feca57; }
+
+    .card p {
+      color: #a8a8b3;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 80px;
+      color: #3a3a4a;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>lmoney.vip</h1>
+    <p>fun games for everyone</p>
+  </header>
+
+  <div class="games">
+    <a class="card red" href="falling-emoji.html">
+      <span class="emoji">🍎</span>
+      <h2>Emoji Catcher</h2>
+      <p>Catch falling fruit and stars with your basket. How long can you last?</p>
+    </a>
+
+    <a class="card blue" href="number-guesser.html">
+      <span class="emoji">🔢</span>
+      <h2>Number Guesser</h2>
+      <p>I'm thinking of a number between 1 and 100. Can you guess it?</p>
+    </a>
+
+    <a class="card green" href="reaction-time.html">
+      <span class="emoji">⚡</span>
+      <h2>Reaction Time</h2>
+      <p>Click the moment the screen changes color. How fast are your reflexes?</p>
+    </a>
+
+    <a class="card yellow" href="moto-race.html">
+      <span class="emoji">🏍️</span>
+      <h2>Moto Race</h2>
+      <p>Tear around the track on your motorcycle. Lean into corners and go fast!</p>
+    </a>
+  </div>
+
+  <footer>made with ❤️ by levi</footer>
+
+</body>
 </html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emoji Catcher – lmoney.vip</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0e17;
+      color: #fffffe;
+      font-family: 'Nunito', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 500px;
+      padding: 16px 20px 8px;
+    }
+
+    #topbar a {
+      color: #a8a8b3;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    #topbar a:hover { color: #fffffe; }
+
+    #score-display {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.6rem;
+      color: #feca57;
+    }
+
+    #lives-display {
+      font-size: 1.3rem;
+      letter-spacing: 4px;
+    }
+
+    #game-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      flex: 1;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: calc(100vh - 80px);
+      touch-action: none;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 14, 23, 0.88);
+      gap: 16px;
+    }
+
+    #overlay h2 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2.8rem;
+      color: #ff6b6b;
+    }
+
+    #overlay p {
+      color: #a8a8b3;
+      font-size: 1.1rem;
+      text-align: center;
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    #overlay .final-score {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      color: #feca57;
+    }
+
+    button {
+      background: #ff6b6b;
+      color: #fffffe;
+      border: none;
+      border-radius: 50px;
+      padding: 14px 40px;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+    }
+
+    button:hover { background: #ff5252; transform: scale(1.05); }
+    button:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <a href="index.html">← back</a>
+  <span id="score-display">0</span>
+  <span id="lives-display">❤️❤️❤️</span>
+</div>
+
+<div id="game-wrap">
+  <canvas id="c"></canvas>
+
+  <div id="overlay">
+    <h2>🍎 Emoji Catcher</h2>
+    <p>Move your basket with the mouse, arrow keys, or touch to catch the falling emojis!</p>
+    <button id="start-btn">Play!</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('start-btn');
+  const scoreEl = document.getElementById('score-display');
+  const livesEl = document.getElementById('lives-display');
+
+  const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🌟','⭐','🍉','🍑','🥝','🍒','🍌'];
+  const BAD = ['💣','🌵'];
+
+  let W, H, basket, items, score, lives, running, animId, spawnTimer, spawnInterval, speed;
+
+  function resize() {
+    const wrap = document.getElementById('game-wrap');
+    W = canvas.width  = wrap.clientWidth;
+    H = canvas.height = wrap.clientHeight;
+    if (basket) basket.w = Math.min(W * 0.22, 100);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+
+  function init() {
+    basket = { x: W / 2, w: Math.min(W * 0.22, 100), h: 28, y: H - 50 };
+    items = [];
+    score = 0;
+    lives = 3;
+    spawnInterval = 1200;
+    speed = 2.5;
+    spawnTimer = 0;
+    updateHUD();
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = score;
+    livesEl.textContent = '❤️'.repeat(lives) || '💔';
+  }
+
+  function spawnItem() {
+    const bad = Math.random() < 0.18;
+    const emoji = bad
+      ? BAD[Math.floor(Math.random() * BAD.length)]
+      : EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    items.push({
+      x: Math.random() * (W - 40) + 20,
+      y: -24,
+      emoji,
+      bad,
+      size: 28 + Math.random() * 10,
+      speed: speed + Math.random() * 1.2
+    });
+  }
+
+  let lastTime = 0;
+
+  function loop(ts) {
+    const dt = ts - lastTime;
+    lastTime = ts;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // spawn
+    spawnTimer += dt;
+    if (spawnTimer >= spawnInterval) {
+      spawnTimer = 0;
+      spawnItem();
+      // gradually get harder
+      spawnInterval = Math.max(400, spawnInterval - 8);
+      speed = Math.min(7, speed + 0.05);
+    }
+
+    // draw basket
+    const bx = basket.x - basket.w / 2;
+    const by = basket.y;
+    ctx.font = `${basket.h * 1.4}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('🧺', basket.x, by + basket.h);
+
+    // update & draw items
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      it.y += it.speed;
+
+      ctx.font = `${it.size}px serif`;
+      ctx.fillText(it.emoji, it.x, it.y);
+
+      // catch check
+      if (
+        it.y + it.size * 0.5 >= by &&
+        it.y - it.size * 0.5 <= by + basket.h &&
+        it.x >= bx - 10 &&
+        it.x <= bx + basket.w + 10
+      ) {
+        items.splice(i, 1);
+        if (it.bad) {
+          lives--;
+          updateHUD();
+          if (lives <= 0) { gameOver(); return; }
+        } else {
+          score++;
+          updateHUD();
+        }
+        continue;
+      }
+
+      // missed good emoji
+      if (it.y > H + 30) {
+        items.splice(i, 1);
+        if (!it.bad) {
+          lives--;
+          updateHUD();
+          if (lives <= 0) { gameOver(); return; }
+        }
+      }
+    }
+
+    animId = requestAnimationFrame(loop);
+  }
+
+  function startGame() {
+    overlay.style.display = 'none';
+    init();
+    running = true;
+    lastTime = performance.now();
+    animId = requestAnimationFrame(loop);
+  }
+
+  function gameOver() {
+    running = false;
+    cancelAnimationFrame(animId);
+    overlay.innerHTML = `
+      <h2>Game Over!</h2>
+      <p class="final-score">You caught <span style="color:#feca57">${score}</span> emoji${score !== 1 ? 's' : ''}!</p>
+      <p>${score >= 20 ? '🏆 Amazing!' : score >= 10 ? '🌟 Nice job!' : 'Keep practicing!'}</p>
+      <button id="start-btn">Play Again</button>
+    `;
+    overlay.style.display = 'flex';
+    document.getElementById('start-btn').addEventListener('click', startGame);
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  // controls
+  document.addEventListener('mousemove', e => {
+    if (!running) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    basket.x = (e.clientX - rect.left) * scaleX;
+  });
+
+  canvas.addEventListener('touchmove', e => {
+    if (!running) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    basket.x = (e.touches[0].clientX - rect.left) * scaleX;
+  }, { passive: false });
+
+  document.addEventListener('keydown', e => {
+    if (!running) return;
+    const step = 22;
+    if (e.key === 'ArrowLeft')  basket.x = Math.max(basket.w / 2, basket.x - step);
+    if (e.key === 'ArrowRight') basket.x = Math.min(W - basket.w / 2, basket.x + step);
+  });
+</script>
+
+</body>
+</html>

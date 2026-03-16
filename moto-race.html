@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Moto Race – lmoney.vip</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0e17;
+      font-family: 'Nunito', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100dvh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 700px;
+      padding: 10px 16px 4px;
+      flex-shrink: 0;
+    }
+
+    #topbar a {
+      color: #a8a8b3;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    #hud {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .hud-item {
+      text-align: center;
+    }
+
+    .hud-label {
+      font-size: 0.65rem;
+      color: #a8a8b3;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .hud-value {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.3rem;
+      color: #feca57;
+    }
+
+    #game-wrap {
+      width: 100%;
+      max-width: 700px;
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Mobile controls */
+    #mobile-controls {
+      display: none;
+      width: 100%;
+      max-width: 700px;
+      padding: 8px 16px 10px;
+      flex-shrink: 0;
+    }
+
+    .ctrl-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      flex: 1;
+      height: 56px;
+      border-radius: 14px;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      background: #1a1a2e;
+      color: #fffffe;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #2a2a3e;
+      transition: background 0.1s;
+    }
+
+    .ctrl-btn:active, .ctrl-btn.pressed { background: #2a2a4e; border-color: #feca57; }
+
+    @media (pointer: coarse) {
+      #mobile-controls { display: block; }
+    }
+
+    /* Overlay */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,14,23,0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    #overlay h2 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2.4rem;
+      color: #feca57;
+    }
+
+    #overlay p {
+      color: #a8a8b3;
+      font-size: 1rem;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+
+    button.start {
+      background: #feca57;
+      color: #0f0e17;
+      border: none;
+      border-radius: 50px;
+      padding: 13px 40px;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    button.start:hover { transform: scale(1.05); }
+    button.start:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <a href="index.html">← back</a>
+  <div id="hud">
+    <div class="hud-item">
+      <div class="hud-label">Speed</div>
+      <div class="hud-value" id="hud-speed">0</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Gear</div>
+      <div class="hud-value" id="hud-gear">N</div>
+    </div>
+  </div>
+</div>
+
+<div id="game-wrap">
+  <canvas id="c"></canvas>
+  <div id="overlay">
+    <div style="font-size:3rem">🏍️</div>
+    <h2>Moto Race</h2>
+    <p>Use <strong>↑ ↓</strong> to accelerate &amp; brake<br><strong>← →</strong> to steer<br>Lean into every corner!</p>
+    <button class="start" id="start-btn">Race!</button>
+  </div>
+</div>
+
+<div id="mobile-controls">
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="btn-left">◀</button>
+    <button class="ctrl-btn" id="btn-up">▲</button>
+    <button class="ctrl-btn" id="btn-down">▼</button>
+    <button class="ctrl-btn" id="btn-right">▶</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('game-wrap');
+const overlay = document.getElementById('overlay');
+const speedEl = document.getElementById('hud-speed');
+const gearEl  = document.getElementById('hud-gear');
+
+let W, H, running = false;
+let animId;
+
+// Track geometry (recalculated on resize)
+let T = {};
+
+function calcTrack() {
+  T.cx = W / 2;
+  T.cy = H / 2;
+  T.orx = W * 0.44;
+  T.ory = H * 0.40;
+  T.irx = W * 0.28;
+  T.iry = H * 0.22;
+  T.width = ((T.orx - T.irx) + (T.ory - T.iry)) / 2;
+  // Start/finish line: right side of track, angle = 0
+  T.sfAngle = 0;
+}
+
+// Bike
+let bike = {};
+
+function initBike() {
+  const startAngle = 0.1; // slightly past start/finish
+  const midRx = (T.orx + T.irx) / 2;
+  const midRy = (T.ory + T.iry) / 2;
+  bike = {
+    x: T.cx + Math.cos(startAngle) * midRx,
+    y: T.cy + Math.sin(startAngle) * midRy,
+    angle: startAngle + Math.PI / 2, // tangent to track
+    speed: 0,
+    lean: 0,      // visual lean, -1 to 1
+    offTrack: false,
+    wobble: 0,
+  };
+}
+
+// Input
+const keys = {};
+const mobileKeys = {};
+
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup',   e => { keys[e.key] = false; });
+
+// Mobile buttons
+['up','down','left','right'].forEach(dir => {
+  const btn = document.getElementById('btn-' + dir);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); mobileKeys[dir] = true; btn.classList.add('pressed'); }, {passive:false});
+  btn.addEventListener('touchend',   e => { e.preventDefault(); mobileKeys[dir] = false; btn.classList.remove('pressed'); }, {passive:false});
+  btn.addEventListener('touchcancel',e => { mobileKeys[dir] = false; btn.classList.remove('pressed'); });
+  btn.addEventListener('mousedown', () => { mobileKeys[dir] = true; btn.classList.add('pressed'); });
+  btn.addEventListener('mouseup',   () => { mobileKeys[dir] = false; btn.classList.remove('pressed'); });
+});
+
+function isUp()    { return keys['ArrowUp']    || keys['w'] || keys['W'] || mobileKeys.up; }
+function isDown()  { return keys['ArrowDown']  || keys['s'] || keys['S'] || mobileKeys.down; }
+function isLeft()  { return keys['ArrowLeft']  || keys['a'] || keys['A'] || mobileKeys.left; }
+function isRight() { return keys['ArrowRight'] || keys['d'] || keys['D'] || mobileKeys.right; }
+
+// Physics constants
+const MAX_SPEED     = 5.5;
+const ACCEL         = 0.09;
+const BRAKE         = 0.18;
+const FRICTION      = 0.97;
+const OFF_FRICTION  = 0.93;
+const TURN_BASE     = 0.032;
+const LEAN_SPEED    = 0.12;
+const LEAN_RETURN   = 0.08;
+
+// Check if a point is on the track
+function onTrack(x, y) {
+  const dx = x - T.cx;
+  const dy = y - T.cy;
+  const outer = (dx/T.orx)**2 + (dy/T.ory)**2;
+  const inner = (dx/T.irx)**2 + (dy/T.iry)**2;
+  return outer <= 1.0 && inner >= 1.0;
+}
+
+function update() {
+  const turning = isLeft() ? -1 : isRight() ? 1 : 0;
+  const speedFrac = Math.abs(bike.speed) / MAX_SPEED;
+
+  // Acceleration / braking
+  if (isUp()) {
+    bike.speed = Math.min(MAX_SPEED, bike.speed + ACCEL);
+  } else if (isDown()) {
+    bike.speed = Math.max(-MAX_SPEED * 0.4, bike.speed - BRAKE);
+  }
+
+  // Friction
+  const fric = bike.offTrack ? OFF_FRICTION : FRICTION;
+  bike.speed *= fric;
+  if (Math.abs(bike.speed) < 0.01) bike.speed = 0;
+
+  // Steering (only effective with speed)
+  if (turning !== 0 && Math.abs(bike.speed) > 0.1) {
+    const turnRate = TURN_BASE * speedFrac * Math.sign(bike.speed);
+    bike.angle += turning * turnRate;
+  }
+
+  // Lean
+  const targetLean = turning * speedFrac;
+  if (Math.abs(targetLean) > Math.abs(bike.lean)) {
+    bike.lean += (targetLean - bike.lean) * LEAN_SPEED;
+  } else {
+    bike.lean += (targetLean - bike.lean) * LEAN_RETURN;
+  }
+  bike.lean = Math.max(-1, Math.min(1, bike.lean));
+
+  // Move
+  const nx = bike.x + Math.cos(bike.angle) * bike.speed;
+  const ny = bike.y + Math.sin(bike.angle) * bike.speed;
+
+  bike.offTrack = !onTrack(nx, ny);
+  bike.x = nx;
+  bike.y = ny;
+
+  // HUD
+  const kmh = Math.round(Math.abs(bike.speed) / MAX_SPEED * 180);
+  speedEl.textContent = kmh;
+  const gear = kmh < 20 ? 'N' : kmh < 50 ? '1' : kmh < 80 ? '2' : kmh < 110 ? '3' : kmh < 145 ? '4' : '5';
+  gearEl.textContent = bike.speed < 0 ? 'R' : gear;
+}
+
+// Drawing helpers
+function drawTrack() {
+  // Grass
+  ctx.fillStyle = '#2d5a27';
+  ctx.fillRect(0, 0, W, H);
+
+  // Track surface
+  ctx.fillStyle = '#4a4a5a';
+  ctx.beginPath();
+  ctx.ellipse(T.cx, T.cy, T.orx, T.ory, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner grass
+  ctx.fillStyle = '#2d5a27';
+  ctx.beginPath();
+  ctx.ellipse(T.cx, T.cy, T.irx, T.iry, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Track edge lines
+  ctx.strokeStyle = '#ffffff44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(T.cx, T.cy, T.orx - 6, T.ory - 6, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(T.cx, T.cy, T.irx + 6, T.iry + 6, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Dashed center line
+  const midRx = (T.orx + T.irx) / 2;
+  const midRy = (T.ory + T.iry) / 2;
+  ctx.setLineDash([18, 14]);
+  ctx.strokeStyle = '#ffffff33';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(T.cx, T.cy, midRx, midRy, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Start/finish line
+  const sfX = T.cx + T.orx;
+  const sfInX = T.cx + T.irx;
+  const sfY = T.cy;
+  const blocks = 8;
+  const blockW = (sfX - sfInX) / blocks;
+  const blockH = 10;
+  for (let i = 0; i < blocks; i++) {
+    ctx.fillStyle = (i % 2 === 0) ? '#ffffff' : '#111111';
+    ctx.fillRect(sfInX + i * blockW, sfY - blockH / 2, blockW, blockH / 2);
+    ctx.fillStyle = (i % 2 === 0) ? '#111111' : '#ffffff';
+    ctx.fillRect(sfInX + i * blockW, sfY, blockW, blockH / 2);
+  }
+}
+
+function drawBike() {
+  ctx.save();
+  ctx.translate(bike.x, bike.y);
+
+  // Rotate to heading
+  ctx.rotate(bike.angle + Math.PI / 2); // +90° because bike points "up" in local space
+
+  // Lean: tilt the whole bike
+  const leanDeg = bike.lean * 28; // max 28 degrees visual lean
+  ctx.rotate((leanDeg * Math.PI) / 180);
+
+  // Squish width slightly to simulate lean perspective
+  const leanSquish = 1 - Math.abs(bike.lean) * 0.18;
+  ctx.scale(leanSquish, 1);
+
+  const s = Math.min(W, H) * 0.038; // bike scale
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(s * 0.1, s * 0.1, s * 0.7, s * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rear wheel
+  ctx.fillStyle = '#1a1a2e';
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.22, s * 0.38, s * 0.44, s * 0.28, s * 0.06);
+  ctx.fill();
+  ctx.stroke();
+
+  // Front wheel
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.18, -s * 0.72, s * 0.36, s * 0.28, s * 0.06);
+  ctx.fill();
+  ctx.stroke();
+
+  // Frame / fairings
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.28, -s * 0.45, s * 0.56, s * 0.78, s * 0.1);
+  ctx.fill();
+
+  // Fairing highlight
+  ctx.fillStyle = '#ff6b6b';
+  ctx.beginPath();
+  ctx.roundRect(-s * 0.16, -s * 0.42, s * 0.18, s * 0.36, s * 0.06);
+  ctx.fill();
+
+  // Number plate
+  ctx.fillStyle = '#fffffe';
+  ctx.font = `bold ${s * 0.28}px Nunito`;
+  ctx.textAlign = 'center';
+  ctx.fillText('1', 0, s * 0.14);
+
+  // Rider helmet
+  ctx.fillStyle = '#3498db';
+  ctx.beginPath();
+  ctx.arc(0, -s * 0.62, s * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Visor
+  ctx.fillStyle = '#feca57';
+  ctx.beginPath();
+  ctx.arc(s * 0.04, -s * 0.64, s * 0.12, 0.2, Math.PI - 0.2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function loop() {
+  if (!running) return;
+  update();
+
+  ctx.clearRect(0, 0, W, H);
+  drawTrack();
+  drawBike();
+
+  animId = requestAnimationFrame(loop);
+}
+
+function startGame() {
+  overlay.style.display = 'none';
+  initBike();
+  running = true;
+  animId = requestAnimationFrame(loop);
+}
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+
+function resize() {
+  const rect = wrap.getBoundingClientRect();
+  W = canvas.width  = rect.width;
+  H = canvas.height = rect.height;
+  calcTrack();
+  if (!running) {
+    ctx.clearRect(0, 0, W, H);
+    drawTrack();
+  }
+}
+
+window.addEventListener('resize', () => { resize(); });
+resize();
+</script>
+
+</body>
+</html>

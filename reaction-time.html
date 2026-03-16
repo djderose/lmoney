@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reaction Time – lmoney.vip</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0e17;
+      color: #fffffe;
+      font-family: 'Nunito', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 20px 40px;
+    }
+
+    .back { align-self: flex-start; color: #a8a8b3; text-decoration: none; font-size: 0.95rem; margin-bottom: 28px; }
+    .back:hover { color: #fffffe; }
+
+    h1 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2.4rem;
+      color: #1dd1a1;
+      margin-bottom: 6px;
+    }
+
+    .subtitle { color: #a8a8b3; font-size: 1rem; margin-bottom: 32px; }
+
+    #arena {
+      width: 100%;
+      max-width: 480px;
+      height: 300px;
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s;
+      background: #1a1a2e;
+      border: 2px solid #2a2a3e;
+      gap: 12px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    #arena.waiting  { background: #1a1a2e; border-color: #2a2a3e; }
+    #arena.ready    { background: #ff6b6b; border-color: #ff5252; }
+    #arena.go       { background: #1dd1a1; border-color: #00b894; }
+    #arena.too-soon { background: #feca57; border-color: #f9ca24; }
+
+    #arena-icon { font-size: 3.5rem; }
+    #arena-text {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      color: #fffffe;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    #arena-sub {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      max-width: 480px;
+      width: 100%;
+      margin-top: 24px;
+    }
+
+    .stat-box {
+      background: #1a1a2e;
+      border-radius: 16px;
+      padding: 16px 12px;
+      text-align: center;
+      border: 2px solid #2a2a3e;
+    }
+
+    .stat-box .label {
+      font-size: 0.78rem;
+      color: #a8a8b3;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .stat-box .value {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.6rem;
+      color: #1dd1a1;
+    }
+
+    .stat-box .value.empty { color: #3a3a4a; }
+
+    #history-section {
+      max-width: 480px;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    #history-section h3 {
+      font-family: 'Fredoka One', cursive;
+      color: #a8a8b3;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+
+    #rounds {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .round-bubble {
+      padding: 5px 14px;
+      border-radius: 50px;
+      font-family: 'Fredoka One', cursive;
+      font-size: 0.9rem;
+    }
+
+    .round-bubble.great  { background: #1dd1a133; color: #1dd1a1; }
+    .round-bubble.good   { background: #feca5733; color: #feca57; }
+    .round-bubble.slow   { background: #ff6b6b33; color: #ff6b6b; }
+  </style>
+</head>
+<body>
+
+<a class="back" href="index.html">← back</a>
+
+<h1>⚡ Reaction Time</h1>
+<p class="subtitle">Click the moment it turns green!</p>
+
+<div id="arena" class="waiting">
+  <div id="arena-icon">⚡</div>
+  <div id="arena-text">Click to Start</div>
+  <div id="arena-sub">Wait for green, then click as fast as you can!</div>
+</div>
+
+<div class="stats">
+  <div class="stat-box">
+    <div class="label">Last</div>
+    <div class="value empty" id="stat-last">—</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Best</div>
+    <div class="value empty" id="stat-best">—</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Average</div>
+    <div class="value empty" id="stat-avg">—</div>
+  </div>
+</div>
+
+<div id="history-section">
+  <h3>Rounds</h3>
+  <div id="rounds"></div>
+</div>
+
+<script>
+  const arena    = document.getElementById('arena');
+  const iconEl   = document.getElementById('arena-icon');
+  const textEl   = document.getElementById('arena-text');
+  const subEl    = document.getElementById('arena-sub');
+  const lastEl   = document.getElementById('stat-last');
+  const bestEl   = document.getElementById('stat-best');
+  const avgEl    = document.getElementById('stat-avg');
+  const roundsEl = document.getElementById('rounds');
+
+  let state = 'idle'; // idle | waiting | go | tooSoon
+  let goTime = 0;
+  let waitTimeout = null;
+  let times = [];
+
+  function setState(s) {
+    state = s;
+    arena.className = '';
+    if (s === 'idle') {
+      arena.classList.add('waiting');
+      iconEl.textContent = '⚡';
+      textEl.textContent = 'Click to Start';
+      subEl.textContent  = 'Wait for green, then click as fast as you can!';
+    } else if (s === 'waiting') {
+      arena.classList.add('ready');
+      iconEl.textContent = '🔴';
+      textEl.textContent = 'Wait…';
+      subEl.textContent  = 'Don\'t click yet!';
+    } else if (s === 'go') {
+      arena.classList.add('go');
+      iconEl.textContent = '🟢';
+      textEl.textContent = 'CLICK NOW!';
+      subEl.textContent  = '';
+    } else if (s === 'tooSoon') {
+      arena.classList.add('too-soon');
+      iconEl.textContent = '😬';
+      textEl.textContent = 'Too soon!';
+      subEl.textContent  = 'You clicked before it turned green. Click to try again.';
+    }
+  }
+
+  function startRound() {
+    setState('waiting');
+    const delay = 1500 + Math.random() * 3500;
+    waitTimeout = setTimeout(() => {
+      setState('go');
+      goTime = performance.now();
+    }, delay);
+  }
+
+  function handleClick() {
+    if (state === 'idle') {
+      startRound();
+    } else if (state === 'waiting') {
+      clearTimeout(waitTimeout);
+      setState('tooSoon');
+    } else if (state === 'go') {
+      const rt = Math.round(performance.now() - goTime);
+      recordTime(rt);
+    } else if (state === 'tooSoon') {
+      startRound();
+    }
+  }
+
+  function recordTime(ms) {
+    times.push(ms);
+    const best = Math.min(...times);
+    const avg  = Math.round(times.reduce((a,b) => a+b, 0) / times.length);
+
+    lastEl.textContent = ms + 'ms';
+    lastEl.className = 'value';
+
+    bestEl.textContent = best + 'ms';
+    bestEl.className = 'value';
+
+    avgEl.textContent = avg + 'ms';
+    avgEl.className = 'value';
+
+    // add round bubble
+    const b = document.createElement('span');
+    b.className = 'round-bubble ' + (ms < 200 ? 'great' : ms < 350 ? 'good' : 'slow');
+    b.textContent = ms + 'ms';
+    roundsEl.prepend(b);
+
+    // show result then auto-start next
+    const msg = ms < 200 ? '🚀 Superhuman!' : ms < 250 ? '⚡ Lightning fast!' : ms < 350 ? '🌟 Great!' : ms < 500 ? '👍 Not bad!' : '🐢 Keep trying!';
+    arena.classList.add('go');
+    iconEl.textContent = '✅';
+    textEl.textContent = ms + 'ms';
+    subEl.textContent  = msg + ' Click to go again.';
+    state = 'result';
+  }
+
+  arena.addEventListener('click', e => {
+    if (state === 'result') {
+      startRound();
+    } else {
+      handleClick();
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); arena.click(); }
+  });
+</script>
+
+</body>
+</html>
