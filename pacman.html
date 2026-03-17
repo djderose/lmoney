@@ -179,7 +179,7 @@ function resetPac() {
     want: { x: 1, y: 0 }, // desired direction (buffered)
     mouth: 0.2,
     mouthDir: 1,
-    speed: CS * 0.09,
+    speed: CS * 0.065,
   };
 }
 
@@ -357,9 +357,9 @@ function ghostTarget(g) {
 }
 
 function updateGhost(g) {
-  const speed = g.gstate === 'eaten'      ? CS * 0.14
-              : g.gstate === 'frightened' ? CS * 0.05
-              :                             CS * 0.085;
+  const speed = g.gstate === 'eaten'      ? CS * 0.10
+              : g.gstate === 'frightened' ? CS * 0.035
+              :                             CS * 0.06;
 
   const forbid = {x: -g.dir.x, y: -g.dir.y};
 
